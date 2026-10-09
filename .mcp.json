@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "adsentinel": {
+      "command": "npx",
+      "args": ["-y", "adsentinel@0.1.0", "mcp"],
+      "env": {
+        "ADSENTINEL_API_KEY": "${user_config.api_key}",
+        "ADSENTINEL_MCP_WAIT_MINUTES": "25"
+      },
+      "timeout": 1560000
+    }
+  }
+}

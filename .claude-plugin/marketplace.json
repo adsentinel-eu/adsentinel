@@ -1,0 +1,15 @@
+{
+  "name": "adsentinel",
+  "description": "AdSentinel: Meta Ad Library ads for AI agents.",
+  "owner": {
+    "name": "AdSentinel",
+    "url": "https://adsentinel.eu"
+  },
+  "plugins": [
+    {
+      "name": "adsentinel",
+      "source": "./",
+      "description": "Meta Ad Library ads for Claude Code: find the advertiser, fetch its ads, read them compact."
+    }
+  ]
+}

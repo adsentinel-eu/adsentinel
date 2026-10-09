@@ -1,0 +1,26 @@
+{
+  "name": "adsentinel",
+  "version": "0.1.0",
+  "description": "Meta Ad Library ads for AI agents: the AdSentinel CLI and MCP server.",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "adsentinel": "dist/bin.js" },
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=20.10" },
+  "homepage": "https://adsentinel.eu",
+  "keywords": ["meta ad library", "facebook ads", "mcp", "ai agents"],
+  "scripts": {
+    "prepack": "npm run build",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && chmod +x dist/bin.js",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  }
+}

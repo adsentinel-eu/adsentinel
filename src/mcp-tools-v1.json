@@ -1,0 +1,350 @@
+[
+  {
+    "name": "find_advertiser",
+    "description": "Find the Meta advertiser (a Facebook/Instagram page) behind a brand name or website domain, and return ranked candidates with their page ids. Free (an API key is still required).\n\nAfter this call, STOP and ask your user which page they mean before calling `get_advertiser_ads`, even when one candidate is ranked first, verified, or marked `proposed`. Brand names are usually ambiguous, and a wrong page silently returns the wrong company's ads. Skip the question only if the user gave you the page id themselves or already confirmed this page in this conversation. If your user explicitly refuses to choose, you may pick, but name the page and market you picked in your answer. `status: \"ambiguous\"` is a normal result, not an error.\n\nCall this whenever you have a name rather than a page id: `get_advertiser_ads` accepts page ids only.\n\nA regional page family (e.g. IKEA: one page per country, all named \"IKEA\") comes back as one candidate with `members`, each labelled by Meta with the market it serves. Each member runs only its own market's ads: there is no global page covering every country. Pass `country` and the member(s) serving that market are marked `proposed` (sometimes several); confirm that set with your user, then pass all of them to `get_advertiser_ads`. With no country known, ask for one. If `marketMember` is \"none\", Meta labels no member for that country: tell the user, and offer `get_keyword_ads` instead of guessing a page.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Brand name (\"IKEA\", \"Telenet\") or website domain (\"bol.com\"). A domain is matched against the links in running ads, which is slower (~4 s) but confirmable."
+        },
+        "country": {
+          "type": "string",
+          "description": "Optional ISO 3166-1 alpha-2 code (\"BE\") of the market the user cares about. Only used to mark which members of a regional page family serve that market. It does not filter candidates."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
+    "name": "get_advertiser_ads",
+    "description": "Get the ads one or more Meta advertisers are running (or ran) from the Meta Ad Library, newest first, fetched live from Meta on every call. Billed per ad delivered: €3.99 per 1000 ads (about €0.004 each) from the account's prepaid credit.\n\nTakes page ids only. With a brand name, call `find_advertiser` first and have your user confirm the page(s). Up to 10 page ids run as one job (e.g. a family's members for one market); `maxAds` is the total across them.\n\nCost control: `maxAds` defaults to 500 (about €2). Credit for the job is held at submit and only delivered ads are billed. Only use `maxAds: \"all\"` when your user asked for everything: big advertisers run thousands of ads (Walmart US: ~8,000, about €32). If the job could cost more than the account's approval threshold, you get `approval_required` with the price and nothing is crawled: tell your user the price and ask. Set `approved: true` only after they say yes, never on your own initiative.\n\nThe call waits for the job (up to about 50 s; in Claude Code until it finishes). If it is not done you get a job handle: call `get_job` with its `jobId`. Every response starts with a `next` line saying what to call or tell the user; follow it.\n\nA result can be partial. If `stoppedBy` is `blocked` or `cancelled`, only the newest ads were reached: say so to your user and offer `resumeFrom`, never present it as the full set. `stoppedBy: \"maxAds\"` means more ads exist; `\"exhausted\"` means that was all of them.\n\nReading the result: `compact` (default) is a JSON header plus CSV tables for ads, distinct copy, and media URLs. For an overview of many ads use `mode: \"extra-compact\"` (no media URLs, ~15x fewer tokens), then re-read the few ads you need with `get_job` in `full`. Re-reading a job is free for 90 days. Media URLs are Meta's and expire within days; the ad's permanent link is the header's `permalink` template with `<id>` replaced by the ad's id (`permalinkExample` shows one filled in); never show the template itself. `dataAsOf` is when Meta was read.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "advertiserIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "maxItems": 10,
+          "description": "Meta page ids, from `find_advertiser` or from the user. Several ids run as one job, merged newest first."
+        },
+        "country": {
+          "type": "string",
+          "description": "Where the ad was SHOWN (ISO alpha-2, or \"ALL\"), never where the advertiser is based. Default \"ALL\". A Belgian company's ads shown in France need \"FR\" or \"ALL\", not \"BE\". EU reach and audience data (`euInsights`) come only with one EU/EEA country: when your user cares about one market (a Belgian brand in Belgium), pass it."
+        },
+        "activeStatus": {
+          "type": "string",
+          "enum": [
+            "active",
+            "inactive",
+            "all"
+          ],
+          "description": "Default \"active\": ads running now. When your user's request does not say whether they mean ads running now or past ads too (\"Walmart's ads\" can mean either), ask them before calling. Pass \"all\" when they ask about history or past campaigns."
+        },
+        "maxAds": {
+          "description": "Maximum ads to return and bill, across all advertiserIds. Default 500 (about €2). A number, or \"all\" (only when your user asked for everything; can be thousands of ads).",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "string",
+              "enum": [
+                "all"
+              ]
+            }
+          ]
+        },
+        "euInsights": {
+          "type": "boolean",
+          "description": "Fetch Meta's EU transparency data per ad: reach, age/gender/country audience, payer and beneficiary. Exists only for ads shown in the EU; the header's `euEligible` says how many ads have it even when this is off. Included in the price. About 0.5 s per such ad; set false for a faster list-only result at the same price. Default true."
+        },
+        "variants": {
+          "type": "boolean",
+          "description": "Add `copyKey` / `assetKey` fingerprints so ads sharing the same text or the same media can be grouped. +€1.00 per 1000 ads. Default false."
+        },
+        "newOnly": {
+          "type": "boolean",
+          "description": "Monthly plan only. Return and bill only ads this account has never received before. The memory is account-wide: any key or automation on the account that already received an ad makes it not new. The first run of a query returns its current ads; later runs return what appeared since. Default false."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "compact",
+            "extra-compact",
+            "full"
+          ],
+          "description": "Output encoding. compact (default): JSON header + CSV tables incl. media URLs. extra-compact: same without media URLs. full: every field as JSON. Parse CSV by column name."
+        },
+        "projection": {
+          "type": "string",
+          "enum": [
+            "volatile",
+            "default",
+            "full"
+          ],
+          "description": "Which fields. volatile: only status fields that change (isActive, endedAt, lastSeenActiveAt, gatedType, euInsights). Same price whatever you pick."
+        },
+        "inlineTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000,
+          "description": "Approximate token budget for results returned in this call (default 20000). Beyond it you get a `cursor` for `get_job`. 0 = header only."
+        },
+        "waitSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Override how long this call waits for the job before returning a handle."
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "description": "Reuse the same key when retrying the same request, so a retry never starts or bills a second job (honoured 24 h)."
+        },
+        "approved": {
+          "type": "boolean",
+          "description": "Only after your user approved the price quoted in an `approval_required` response."
+        },
+        "resumeFrom": {
+          "type": "string",
+          "description": "jobId of an earlier job that stopped early (`stoppedBy: \"blocked\"`). Continues where it stopped with the same parameters; ads that job already delivered are never billed again."
+        }
+      },
+      "required": [
+        "advertiserIds"
+      ]
+    }
+  },
+  {
+    "name": "get_keyword_ads",
+    "description": "Search the Meta Ad Library for ads by keyword, fetched live on every call, across all advertisers. Use it for \"who advertises on X\" and topic or market scans. Billed per ad delivered: €3.99 per 1000 ads, same as `get_advertiser_ads`.\n\nThe header includes an advertiser breakdown (name, page id, verified, ad count in this result). To answer \"who advertises on X\" cheaply, set a modest `maxAds` and `inlineTokens: 0`: you get just the header, billed for the ads found.\n\nMatching is Meta's and loose: some returned ads (often 3-33%) show no keyword in their visible text, and nothing in the data says why they matched. Say so if exactness matters. `match: \"phrase\"` (default) needs the words together; `all_words` accepts them anywhere, in any order, and returns far more.\n\n`sort` decides which ads you get, and so what you pay for. `impressions` (default) is Meta's ranking by total impressions: the big, long-running campaigns first, the best answer to \"who advertises on X\". `recent` is newest first, for \"what launched this week\"; on broad keywords the newest ads are mostly small sellers and spam, so keep `maxAds` modest. Tell your user which order you used.\n\nPartial results (`stoppedBy`), cost control, waiting, job handles, `next`, output modes and re-reads work exactly as in `get_advertiser_ads` (by `impressions`, a partial result holds the top-ranked ads, not the newest): never set `approved: true` without your user's yes to the quoted price.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "keyword": {
+          "type": "string",
+          "description": "Word or phrase, in the language the ads are written in."
+        },
+        "match": {
+          "type": "string",
+          "enum": [
+            "phrase",
+            "all_words"
+          ],
+          "description": "phrase (default): the exact phrase. all_words: every word, any order, anywhere; broader and looser."
+        },
+        "sort": {
+          "type": "string",
+          "enum": [
+            "impressions",
+            "recent"
+          ],
+          "description": "impressions (default): Meta's ranking by total impressions, the major advertisers first. recent: newest first. newOnly always runs recent."
+        },
+        "country": {
+          "type": "string",
+          "description": "Where the ad was SHOWN (ISO alpha-2, or \"ALL\"), never where the advertiser is based. Default \"ALL\". \"internet\" shown in BE includes US brands."
+        },
+        "activeStatus": {
+          "type": "string",
+          "enum": [
+            "active",
+            "inactive",
+            "all"
+          ],
+          "description": "Default \"active\". When your user's request does not say whether they mean ads running now or past ads too (\"Walmart's ads\" can mean either), ask them before calling. Pass \"all\" when they ask about history or past campaigns."
+        },
+        "maxAds": {
+          "description": "Maximum ads to return and bill. Default 500. A number, or \"all\" (broad keywords run to tens of thousands: check with your user first).",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "string",
+              "enum": [
+                "all"
+              ]
+            }
+          ]
+        },
+        "newOnly": {
+          "type": "boolean",
+          "description": "Monthly plan only. Return and bill only ads this account has never received before (account-wide, shared by every key and automation on it). Runs newest first (sort: recent). Default false."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "compact",
+            "extra-compact",
+            "full"
+          ],
+          "description": "As in get_advertiser_ads. Default compact."
+        },
+        "projection": {
+          "type": "string",
+          "enum": [
+            "volatile",
+            "default",
+            "full"
+          ],
+          "description": "As in get_advertiser_ads."
+        },
+        "inlineTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000,
+          "description": "Default 20000. 0 = header only (the advertiser breakdown)."
+        },
+        "waitSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "description": "Reuse when retrying the same request (24 h)."
+        },
+        "approved": {
+          "type": "boolean",
+          "description": "Only after your user approved the quoted price."
+        },
+        "resumeFrom": {
+          "type": "string",
+          "description": "jobId of an earlier job that stopped early (`stoppedBy: \"blocked\"`). Continues where it stopped with the same parameters; ads that job already delivered are never billed again."
+        }
+      },
+      "required": [
+        "keyword"
+      ]
+    }
+  },
+  {
+    "name": "get_job",
+    "description": "Wait for a job and read its results. Free. Use it with any `jobId` returned by `get_advertiser_ads`, `get_keyword_ads` or `refresh_ads`: while the job runs it waits (about 50 s, or until done in Claude Code) and returns progress; once completed it returns results, with a `cursor` if they exceed `inlineTokens`.\n\nResults are frozen at delivery and readable for 90 days; re-reading, paging, or switching `mode`/`projection` never bills again. Typical use: read `extra-compact` first, then `full` for the handful of ads that matter.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string"
+        },
+        "cursor": {
+          "type": "string",
+          "description": "From the previous page's response, to read the next page of results."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "compact",
+            "extra-compact",
+            "full"
+          ]
+        },
+        "projection": {
+          "type": "string",
+          "enum": [
+            "volatile",
+            "default",
+            "full"
+          ]
+        },
+        "inlineTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "waitSeconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "jobId"
+      ]
+    }
+  },
+  {
+    "name": "cancel_job",
+    "description": "Stop a queued or running job. Free to call. A queued job, or one stopped before its first page, costs nothing. A running job delivers and bills the ads already crawled (the newest ones, as if `maxAds` had been that number) and ends `completed` with `stoppedBy: \"cancelled\"`.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "jobId"
+      ]
+    }
+  },
+  {
+    "name": "refresh_ads",
+    "description": "Get the current state of ads this account already received, by ad id: is it still active, when did it end, was it taken down, current EU reach. Monthly plan only. Billed per ad at the normal rate (€3.99 per 1000; it is a new crawl, not a free re-read), but only for the ads you name, so it is far cheaper than re-running a whole advertiser to check a few ads.\n\nOn pay-as-you-go this returns `plan_required`. If your user wants current status for ads they hold and is on pay-as-you-go, tell them the monthly plan offers this, rather than silently re-running the advertiser.\n\nEach ad comes back as `refreshed`, `no_eu_data` (billed: still no EU data), `not_found` (Meta no longer has it; free) or `not_yours` (this account never received it; free). Returns only the fields that change by default (`projection: \"volatile\"`); ask for `full` at the same price. Runs as a job, like the other ad tools.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "adIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "maxItems": 500,
+          "description": "Ad ids (ad_archive_id) this account received. Give this or fromJobId."
+        },
+        "fromJobId": {
+          "type": "string",
+          "description": "Refresh every ad delivered by this earlier job. Give this or adIds."
+        },
+        "projection": {
+          "type": "string",
+          "enum": [
+            "volatile",
+            "default",
+            "full"
+          ],
+          "description": "Default volatile."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "compact",
+            "extra-compact",
+            "full"
+          ]
+        },
+        "inlineTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "waitSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "idempotencyKey": {
+          "type": "string"
+        },
+        "approved": {
+          "type": "boolean",
+          "description": "Only after your user approved the quoted price."
+        }
+      }
+    }
+  },
+  {
+    "name": "get_account",
+    "description": "The account behind this API key: remaining credit (plan credit, grant, balance), plan, spend guards (approval threshold, this key's spend cap), recent jobs (`recentJobs`: id, query, ads, date), and whether Meta is currently reachable per capability (`resolve`, `list`, `detail`: ok | degraded | paused). Free. Call it before a large job, when your user asks about credit, to find the `jobId` of an earlier job, or after a `source_paused` or blocked response.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    }
+  }
+]
