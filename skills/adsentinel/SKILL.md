@@ -41,15 +41,18 @@ In Claude Code, for hundreds of ads or a file the user wants to keep, run the CL
 rows never enter the conversation. Pin the version:
 
 ```
-npx -y adsentinel@0.1.0 advertiser <pageId[,pageId...]> --country XX --max 1000 --out ads.csv
-npx -y adsentinel@0.1.0 keyword "<keyword>" --country XX --out ads.jsonl
+npx -y adsentinel@0.1.1 advertiser <pageId[,pageId...]> --country XX --max 1000 --out ads.csv
+npx -y adsentinel@0.1.1 keyword "<keyword>" --country XX --out ads.jsonl
 ```
 
 - The CLI waits until the job ends, which can take minutes: run it in the background or with a long Bash
   timeout (the default is 2 minutes).
 - If the command was cut off, the job is still running. Its id is on the first stderr line; read it again with
-  `npx -y adsentinel@0.1.0 job <jobId> --out <file>` (free). Never submit the pull again.
+  `npx -y adsentinel@0.1.1 job <jobId> --out <file>` (free). Never submit the pull again.
 - It prints only the summary header. Read the file with a script if the user needs numbers from it.
 - On `no_api_key`: the plugin's key field reaches the tools, not the CLI. Do not retry. Ask the user to run
   `npx adsentinel login` in a terminal outside Claude Code (it asks for the key, checks it and stores it), or
   to export `ADSENTINEL_API_KEY` before starting Claude Code. Inside Claude Code the CLI never asks questions.
+- After the user logs in, call the tool again: the tools read the stored key on every call, so no restart is needed
+  (an MCP server older than 0.1.1 needs `/mcp`, then reconnect adsentinel). Their account is at
+  https://adsentinel.eu/dashboard.

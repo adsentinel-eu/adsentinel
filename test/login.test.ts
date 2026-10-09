@@ -57,7 +57,8 @@ test("in an agent's shell: the first run prints the link and returns; the next r
   assert.equal(await main(["login"], second.io), EXIT.ok);
   assert.deepEqual(seen.slice(1).map((r) => [r.url.pathname, r.body]), [["/v1/device/token", { deviceCode: "dev-secret" }]], "the same login is resumed, not a new one");
   assert.equal(readStoredKey(second.io.env), "adsk_new");
-  assert.match(second.err.at(-1)!, /^Approved\. Key "adsentinel CLI on laptop" \(adsk_newpref…\) stored in .*credentials\.json/);
+  assert.match(second.err.at(-2)!, /^Approved\. Key "adsentinel CLI on laptop" \(adsk_newpref…\) stored in .*credentials\.json/);
+  assert.match(second.err.at(-1)!, /^Your account \(credit, keys, jobs\): http:\/\/api\.test\/dashboard, or `adsentinel account`\.$/);
   assert.equal(existsSync(pendingLoginPath(second.io.env)), false);
 });
 

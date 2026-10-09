@@ -300,8 +300,12 @@ async function loginWithKey(io: CliIo, key: string): Promise<number> {
   const path = storeKey(io.env, key);
   clearPendingLogin(io.env);
   io.stderr(`Key "${acct.key.name}" works. Stored in ${path} (only you can read it).`);
+  io.stderr(accountLine(io.env));
   return EXIT.ok;
 }
+
+/** After a login: where the account behind the key lives. */
+const accountLine = (env: Env) => `Your account (credit, keys, jobs): ${siteUrlOf(env)}/dashboard, or \`adsentinel account\`.`;
 
 /** How long a run without a human at the terminal waits for the approval before it hands back. */
 export const AGENT_LOGIN_WAIT_MS = 60_000;
@@ -339,6 +343,7 @@ async function loginInBrowser(io: CliIo): Promise<number> {
       const path = storeKey(io.env, r.apiKey);
       clearPendingLogin(io.env);
       io.stderr(`Approved. Key "${r.key.name}" (${r.key.prefix}…) stored in ${path} (only you can read it).`);
+      io.stderr(accountLine(io.env));
       return EXIT.ok;
     }
     if (r.status === "denied" || r.status === "expired") {

@@ -20,6 +20,16 @@ test("no key: no Authorization header, so the API answers no_api_key with its ow
   assert.equal(seen[0]!.headers.authorization, undefined);
 });
 
+test("a key lookup is asked on every call: a key stored after start is used without a restart (the MCP server)", async () => {
+  const { fetch, seen } = fakeFetch([() => json(200, { ok: true }), () => json(200, { ok: true })]);
+  let stored: string | null = null;
+  const api = createApi({ baseUrl: "http://api.test", key: () => stored, userAgent: "t", fetch });
+  await api.call("GET", "/v1/account", { accept: "json" });
+  stored = "adsk_later";
+  await api.call("GET", "/v1/account", { accept: "json" });
+  assert.deepEqual(seen.map((r) => r.headers.authorization), [undefined, "Bearer adsk_later"]);
+});
+
 test("a POST sends JSON; an error keeps the API's extra fields; a non-API error body becomes internal", async () => {
   const { fetch, seen } = fakeFetch([
     (r) => (r.url.pathname === "/v1/jobs" ? json(402, { error: { code: "approval_required", message: "m", next: "Ask your user", costEur: 12.5 } }) : undefined),

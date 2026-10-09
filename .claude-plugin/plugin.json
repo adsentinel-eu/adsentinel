@@ -1,6 +1,6 @@
 {
   "name": "adsentinel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Meta Ad Library ads for Claude Code: the AdSentinel tools, a skill that knows how to use them, and /adsentinel:advertiser and /adsentinel:keyword.",
   "author": {
     "name": "AdSentinel",
@@ -12,7 +12,7 @@
     "api_key": {
       "type": "string",
       "title": "AdSentinel API key",
-      "description": "Leave blank to use the key from `npx adsentinel login`.",
+      "description": "Your AdSentinel API key. No key yet? Sign up at https://adsentinel.eu/signup (€2 of free credit), then leave this blank and run `npx adsentinel login` in a terminal, or paste a key from your dashboard here.",
       "sensitive": true,
       "required": false
     }

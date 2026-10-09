@@ -3,6 +3,9 @@
 Meta Ad Library ads for you and your AI agents: the AdSentinel CLI and MCP server, in one package.
 Every call fetches live from the Meta Ad Library through the AdSentinel API. Docs: https://adsentinel.eu/docs/quickstart
 
+You need an AdSentinel account: sign up at https://adsentinel.eu/signup (€2 of free credit), then sign in below.
+Your credit, keys and jobs are on your dashboard, https://adsentinel.eu/dashboard (or run `adsentinel account`).
+
 ## Sign in
 
 ```

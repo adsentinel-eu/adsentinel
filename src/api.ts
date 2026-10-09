@@ -8,8 +8,9 @@ export type Fetch = (input: string, init: RequestInit) => Promise<Response>;
 
 export interface ApiOptions {
   baseUrl: string;
-  /** null sends no Authorization header: the API answers `no_api_key` with its own `next`. */
-  key: string | null;
+  /** null sends no Authorization header: the API answers `no_api_key` with its own `next`. A function is asked on every
+   *  call, so a long-lived process (the MCP server) uses a key stored after it started. */
+  key: string | null | (() => string | null);
   userAgent: string;
   /** Sent as `AdSentinel-Schema-Version` when set ("latest" for the MCP server, surface v1 § Schema versioning). */
   schemaVersion?: string;
@@ -75,7 +76,8 @@ export function createApi(o: ApiOptions): Api {
   return {
     baseUrl,
     async call(method, path, c) {
-      if (o.key && /[\s\x00-\x1f]/.test(o.key)) {
+      const key = typeof o.key === "function" ? o.key() : o.key;
+      if (key && /[\s\x00-\x1f]/.test(key)) {
         throw new ApiError("invalid_api_key", "the API key has spaces or line breaks inside it", "Copy the key again as one word, then set ADSENTINEL_API_KEY or run `adsentinel login --key <key>`.", 401);
       }
       const url = new URL(baseUrl + path);
@@ -84,7 +86,7 @@ export function createApi(o: ApiOptions): Api {
         accept: c.accept === "text" ? "text/plain" : "application/json",
         "user-agent": o.userAgent,
       };
-      if (o.key) headers.authorization = `Bearer ${o.key}`;
+      if (key) headers.authorization = `Bearer ${key}`;
       if (o.schemaVersion) headers["adsentinel-schema-version"] = o.schemaVersion;
       const init: RequestInit = { method, headers };
       if (c.body !== undefined) {

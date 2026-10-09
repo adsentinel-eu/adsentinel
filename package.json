@@ -1,6 +1,6 @@
 {
   "name": "adsentinel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Meta Ad Library ads for AI agents: the AdSentinel CLI and MCP server.",
   "license": "MIT",
   "type": "module",

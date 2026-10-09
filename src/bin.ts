@@ -42,7 +42,7 @@ try {
     stdout: (s) => process.stdout.write(`${s}\n`),
     stderr: (s) => process.stderr.write(`${s}\n`),
     runMcp: async () => {
-      const api = createApi({ baseUrl: baseUrlOf(env), key: resolveKey(env).key, userAgent: `adsentinel-mcp/${version}`, schemaVersion: "latest" });
+      const api = createApi({ baseUrl: baseUrlOf(env), key: () => resolveKey(env).key, userAgent: `adsentinel-mcp/${version}`, schemaVersion: "latest" });
       await runMcp({ api, version, env }, new StdioServerTransport());
       await new Promise<void>((resolve) => process.stdin.on("close", resolve));
     },
